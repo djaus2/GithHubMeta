@@ -15,7 +15,7 @@ Console app to collect GitHub traffic data into SQLite.
 - Token user must have at least **push/write** access to each monitored repository to read traffic endpoints.
 - Fine-grained tokens may return `403 Resource not accessible by personal access token` for traffic APIs.
 
-![classic.png](docs/classic.png)
+![classic.png](https://github.com/djaus2/GithHubMeta/blob/4d815c8dfa796b91cd6176e59b577e2560f028b3/Images?plain=1)
 
 PowerShell example:
 `$env:GITHUB_TOKEN="ghp_your_classic_pat_here"`
