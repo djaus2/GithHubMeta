@@ -1,4 +1,10 @@
 <Solution>
+  <File Path="README.md" />
+  <Folder Name="/Images/">
+    <File Path="Images/classic.png" />
+    <File Path="Images/classic2.png" />
+  </Folder>
   <Project Path="GitHubMetaConsole/GitHubMetaConsole.csproj" />
   <Project Path="GitHubMetaWPF/GitHubMetaWPF.csproj" />
 </Solution>
+
