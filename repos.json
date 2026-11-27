@@ -1,0 +1,16 @@
+{
+  "repositories": [
+    {
+      "owner": "djaus2",
+      "name": "Drafts"
+    },
+    {
+      "owner": "djaus2",
+      "name": "Reversi"
+    },
+    {
+      "owner": "djaus2",
+      "name": "WalkieTalkie"
+    }
+  ]
+}
