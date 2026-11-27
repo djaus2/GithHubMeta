@@ -23,7 +23,11 @@ Console app to collect GitHub traffic data into SQLite.
 ***...Set PAT scope to `repo` as is required for traffic API access.***
 
 PowerShell example:
-`$env:GITHUB_TOKEN="ghp_your_classic_pat_here"`
+
+```PS
+$env:GITHUB_TOKEN="ghp_your_classic_pat_here"`
+dotnet run
+```
 
 Data is stored in `github-traffic.db` using entities:
 
