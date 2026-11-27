@@ -1,0 +1,128 @@
+﻿<Window x:Class="GitHubMetaWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="GitHub Traffic Viewer" Height="760" Width="1150"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Menu Grid.Row="0" Margin="0,0,0,8">
+            <MenuItem Header="Repositories">
+                <MenuItem Header="Add..." Click="AddRepositoryMenuItem_Click"/>
+                <MenuItem Header="Remove Selected" Click="RemoveRepositoryMenuItem_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <Border BorderThickness="1" BorderBrush="#DDD" CornerRadius="4" Padding="10" Grid.Row="1">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,8">Configuration</TextBlock>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,6" VerticalAlignment="Center">Database</TextBlock>
+                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" x:Name="DbPathTextBox" IsReadOnly="True"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,6" VerticalAlignment="Center">Repo config</TextBlock>
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" x:Name="ReposPathTextBox" IsReadOnly="True"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center">GitHub token</TextBlock>
+                    <PasswordBox Grid.Row="2" Grid.Column="1" x:Name="TokenPasswordBox"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+            <Button x:Name="SyncButton" Width="180" Height="32" Click="SyncButton_Click">Sync configured repos</Button>
+            <Button x:Name="RefreshReposButton" Width="140" Height="32" Margin="8,0,0,0" Click="RefreshReposButton_Click">Refresh repo list</Button>
+            <Button Width="120" Height="32" Margin="8,0,0,0" Click="AddRepositoryMenuItem_Click">Add repo...</Button>
+            <Button Width="130" Height="32" Margin="8,0,0,0" Click="RemoveRepositoryMenuItem_Click">Remove selected</Button>
+            <TextBlock Margin="12,8,0,0" x:Name="StatusTextBlock" Foreground="#444">Ready.</TextBlock>
+        </StackPanel>
+
+        <Border BorderThickness="1" BorderBrush="#DDD" CornerRadius="4" Padding="10" Grid.Row="3" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,8">Filter</TextBlock>
+                <WrapPanel>
+                    <StackPanel Width="300" Margin="0,0,12,0">
+                        <TextBlock Margin="0,0,0,4">Repository</TextBlock>
+                        <ComboBox x:Name="RepositoryComboBox"
+                                  DisplayMemberPath="Name"
+                                  SelectedValuePath="Id"
+                                  SelectionChanged="RepositoryComboBox_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Width="180" Margin="0,0,12,0">
+                        <TextBlock Margin="0,0,0,4">From</TextBlock>
+                        <DatePicker x:Name="FromDatePicker" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                    </StackPanel>
+                    <StackPanel Width="180" Margin="0,0,12,0">
+                        <TextBlock Margin="0,0,0,4">To</TextBlock>
+                        <DatePicker x:Name="ToDatePicker" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                    </StackPanel>
+                    <StackPanel Width="130" Margin="0,21,0,0">
+                        <Button Height="30" Click="LoadDataButton_Click">Load data</Button>
+                    </StackPanel>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <Border BorderThickness="1" BorderBrush="#DDD" CornerRadius="4" Padding="10" Grid.Row="4" Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Foreground="#666">Total Clones</TextBlock>
+                    <TextBlock x:Name="TotalClonesText" FontSize="24" FontWeight="SemiBold">0</TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Foreground="#666">Unique Cloners</TextBlock>
+                    <TextBlock x:Name="TotalUniqueClonersText" FontSize="24" FontWeight="SemiBold">0</TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Foreground="#666">Total Views</TextBlock>
+                    <TextBlock x:Name="TotalViewsText" FontSize="24" FontWeight="SemiBold">0</TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="3">
+                    <TextBlock Foreground="#666">Unique Viewers</TextBlock>
+                    <TextBlock x:Name="TotalUniqueViewersText" FontSize="24" FontWeight="SemiBold">0</TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <DataGrid Grid.Row="5" Margin="0,10,0,0" x:Name="DailyDataGrid" IsReadOnly="True" AutoGenerateColumns="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=yyyy-MM-dd}" Width="140"/>
+                <DataGridTextColumn Header="Clones" Binding="{Binding Clones}" Width="120"/>
+                <DataGridTextColumn Header="Unique Cloners" Binding="{Binding UniqueCloners}" Width="140"/>
+                <DataGridTextColumn Header="Views" Binding="{Binding Views}" Width="120"/>
+                <DataGridTextColumn Header="Unique Viewers" Binding="{Binding UniqueViewers}" Width="140"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="6" Margin="0,8,0,0" Foreground="#666">
+            Extended range is controlled by the selected From/To dates.
+        </TextBlock>
+    </Grid>
+</Window>

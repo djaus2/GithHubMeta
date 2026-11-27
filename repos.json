@@ -1,16 +1,16 @@
 {
-  "repositories": [
+  "Repositories": [
     {
-      "owner": "djaus2",
-      "name": "Drafts"
+      "Owner": "djaus2",
+      "Name": "Drafts"
     },
     {
-      "owner": "djaus2",
-      "name": "Reversi"
+      "Owner": "djaus2",
+      "Name": "Reversi"
     },
     {
-      "owner": "djaus2",
-      "name": "WalkieTalkie"
+      "Owner": "djaus2",
+      "Name": "WalkieTalkie"
     }
   ]
 }

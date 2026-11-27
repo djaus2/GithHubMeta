@@ -1,16 +1,17 @@
 ﻿using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
-const string DbFile = "github-traffic.db";
-const string ReposFile = "repos.json";
+var repoRoot = ResolveRepoRoot();
+var dbFile = Path.Combine(repoRoot, "github-traffics.db");
+var reposFile = Path.Combine(repoRoot, "repos.json");
 
-if (!File.Exists(ReposFile))
+if (!File.Exists(reposFile))
 {
-    Console.WriteLine($"Missing {ReposFile}. Create it with repositories to monitor.");
+    Console.WriteLine($"Missing {reposFile}. Create it with repositories to monitor.");
     return;
 }
 
-var reposConfig = await LoadReposAsync(ReposFile);
+var reposConfig = await LoadReposAsync(reposFile);
 if (reposConfig.Repositories.Count == 0)
 {
     Console.WriteLine("No repositories configured in repos.json.");
@@ -30,7 +31,7 @@ if (string.IsNullOrWhiteSpace(token))
     return;
 }
 
-var connectionString = new SqliteConnectionStringBuilder { DataSource = DbFile }.ToString();
+var connectionString = new SqliteConnectionStringBuilder { DataSource = dbFile }.ToString();
 await using var db = new SqliteConnection(connectionString);
 await db.OpenAsync();
 
@@ -73,6 +74,22 @@ else
     var joinedError = string.Join(Environment.NewLine, errors);
     await CompleteSyncRunAsync(db, syncRunId, completedUtc, "Failed", joinedError);
     Console.WriteLine("Sync completed with failures.");
+}
+
+static string ResolveRepoRoot()
+{
+    var current = new DirectoryInfo(AppContext.BaseDirectory);
+    while (current is not null)
+    {
+        if (Directory.Exists(Path.Combine(current.FullName, ".git")))
+        {
+            return current.FullName;
+        }
+
+        current = current.Parent;
+    }
+
+    return Directory.GetCurrentDirectory();
 }
 
 static HttpClient CreateGitHubClient(string token)

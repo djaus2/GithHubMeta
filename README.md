@@ -1,12 +1,13 @@
 # GithHubMeta
 
-Console app to collect GitHub traffic data into SQLite.
+Console and WPF apps to collect and view GitHub traffic data in SQLite.
 
 ## Run
 
 1. Update `repos.json` with repositories to monitor.
-2. Run `dotnet run`.
-3. Enter a GitHub token with access to repository traffic data.
+2. Run console sync app: `dotnet run --project .\\GitHubMetaConsole\\GitHubMetaConsole.csproj`.
+3. Run WPF viewer app: `dotnet run --project .\\GitHubMetaWPF\\GitHubMetaWPF.csproj`.
+4. Enter a GitHub token with access to repository traffic data.
 
 ## GitHub PAT access
 
@@ -25,11 +26,11 @@ Console app to collect GitHub traffic data into SQLite.
 PowerShell example:
 
 ```PS
-$env:GITHUB_TOKEN="ghp_your_classic_pat_here"`
-dotnet run
+$env:GITHUB_TOKEN="ghp_your_classic_pat_here"
+dotnet run --project .\GitHubMetaConsole\GitHubMetaConsole.csproj
 ```
 
-Data is stored in `github-traffic.db` using entities:
+Data is stored in `github-traffics.db` using entities:
 
 - Repository
 - ViewDay (day index table)
@@ -37,4 +38,4 @@ Data is stored in `github-traffic.db` using entities:
 - SyncRun
 
 > Note: There is a sample database `github-traffics_sample.db`.  
-When you first run the app it will create a new database `github-traffic.db` and populate it with the repositories in `repos.json`. The app will then collect traffic data for each repository and store it in the database.
+When you first run the app it will create a new database `github-traffics.db` and populate it with the repositories in `repos.json`. The app will then collect traffic data for each repository and store it in the database.
