@@ -11,7 +11,7 @@ Console and WPF apps to collect and view GitHub traffic data in SQLite.
 3. Run WPF viewer app: `dotnet run --project .\\GitHubMetaWPF\\GitHubMetaWPF.csproj`.
 4. Enter a GitHub token with access to repository traffic data.
    - 4.1 The token is saved with the WPF app.
-   - 4.2 Withe WPF you can add and remove repositories including associated data.
+   - 4.2 With the WPF you can add and remove repositories including associated data.
 
 ## GitHub PAT access
 
