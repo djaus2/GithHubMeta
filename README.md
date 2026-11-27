@@ -16,7 +16,11 @@ Console app to collect GitHub traffic data into SQLite.
 - Fine-grained tokens may return `403 Resource not accessible by personal access token` for traffic APIs.
 
 ![classic.png](Images/classic.png)  
-![classic2.png](Images/classic2.png)
+***... Use a Classic PAT***
+<br />
+
+![classic2.png](Images/classic2.png)  
+***...Set PAT scope to `repo` as is required for traffic API access.***
 
 PowerShell example:
 `$env:GITHUB_TOKEN="ghp_your_classic_pat_here"`
