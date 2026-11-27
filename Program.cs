@@ -1,5 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
 const string DbFile = "github-traffic.db";
@@ -18,8 +17,13 @@ if (reposConfig.Repositories.Count == 0)
     return;
 }
 
-Console.Write("GitHub token: ");
-var token = ReadSecret();
+var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+if (string.IsNullOrWhiteSpace(token))
+{
+    Console.Write("GitHub token (paste and press Enter): ");
+    token = Console.ReadLine();
+}
+
 if (string.IsNullOrWhiteSpace(token))
 {
     Console.WriteLine("Token is required.");
@@ -46,8 +50,7 @@ foreach (var repo in reposConfig.Repositories)
         var views = await GetTrafficDaysAsync(httpClient, repo.Owner, repo.Name, "views");
         var clones = await GetTrafficDaysAsync(httpClient, repo.Owner, repo.Name, "clones");
 
-        await UpsertViewDaysAsync(db, repositoryId, syncRunId, views);
-        await UpsertCloneDaysAsync(db, repositoryId, syncRunId, clones);
+        await UpsertTrafficDaysAsync(db, repositoryId, syncRunId, views, clones);
 
         Console.WriteLine($"Synced {repo.Owner}/{repo.Name}: views={views.Count}, clones={clones.Count}");
     }
@@ -112,24 +115,22 @@ static async Task EnsureSchemaAsync(SqliteConnection db)
               );
 
               CREATE TABLE IF NOT EXISTS ViewDay (
-                  RepositoryId INTEGER NOT NULL,
+                  DayIndex INTEGER PRIMARY KEY AUTOINCREMENT,
                   [Date] TEXT NOT NULL,
-                  Visitors INTEGER NOT NULL,
-                  UniqueVisitors INTEGER NOT NULL,
-                  SyncRunId INTEGER NOT NULL,
-                  PRIMARY KEY (RepositoryId, [Date]),
-                  FOREIGN KEY (RepositoryId) REFERENCES Repository(Id),
-                  FOREIGN KEY (SyncRunId) REFERENCES SyncRun(Id)
+                  UNIQUE([Date])
               );
 
               CREATE TABLE IF NOT EXISTS CloneDay (
                   RepositoryId INTEGER NOT NULL,
-                  [Date] TEXT NOT NULL,
+                  DayIndex INTEGER NOT NULL,
                   Clones INTEGER NOT NULL,
                   UniqueCloners INTEGER NOT NULL,
+                  Views INTEGER NOT NULL,
+                  UniqueViewers INTEGER NOT NULL,
                   SyncRunId INTEGER NOT NULL,
-                  PRIMARY KEY (RepositoryId, [Date]),
+                  PRIMARY KEY (RepositoryId, DayIndex),
                   FOREIGN KEY (RepositoryId) REFERENCES Repository(Id),
+                  FOREIGN KEY (DayIndex) REFERENCES ViewDay(DayIndex),
                   FOREIGN KEY (SyncRunId) REFERENCES SyncRun(Id)
               );
               """;
@@ -137,6 +138,70 @@ static async Task EnsureSchemaAsync(SqliteConnection db)
     await using var cmd = db.CreateCommand();
     cmd.CommandText = sql;
     await cmd.ExecuteNonQueryAsync();
+
+    await MigrateTrafficTablesIfNeededAsync(db);
+}
+
+static async Task MigrateTrafficTablesIfNeededAsync(SqliteConnection db)
+{
+    var viewDayColumns = await GetColumnNamesAsync(db, "ViewDay");
+    var cloneDayColumns = await GetColumnNamesAsync(db, "CloneDay");
+
+    var requiresViewMigration = viewDayColumns.Contains("RepositoryId") ||
+                                viewDayColumns.Contains("Visitors") ||
+                                viewDayColumns.Contains("UniqueVisitors");
+
+    var requiresCloneMigration = cloneDayColumns.Contains("Date") ||
+                                 !cloneDayColumns.Contains("Views") ||
+                                 !cloneDayColumns.Contains("UniqueViewers") ||
+                                 !cloneDayColumns.Contains("DayIndex");
+
+    if (!requiresViewMigration && !requiresCloneMigration)
+    {
+        return;
+    }
+
+    await using var cmd = db.CreateCommand();
+    cmd.CommandText = """
+                      DROP TABLE IF EXISTS CloneDay;
+                      DROP TABLE IF EXISTS ViewDay;
+
+                      CREATE TABLE ViewDay (
+                          DayIndex INTEGER PRIMARY KEY AUTOINCREMENT,
+                          [Date] TEXT NOT NULL,
+                          UNIQUE([Date])
+                      );
+
+                      CREATE TABLE CloneDay (
+                          RepositoryId INTEGER NOT NULL,
+                          DayIndex INTEGER NOT NULL,
+                          Clones INTEGER NOT NULL,
+                          UniqueCloners INTEGER NOT NULL,
+                          Views INTEGER NOT NULL,
+                          UniqueViewers INTEGER NOT NULL,
+                          SyncRunId INTEGER NOT NULL,
+                          PRIMARY KEY (RepositoryId, DayIndex),
+                          FOREIGN KEY (RepositoryId) REFERENCES Repository(Id),
+                          FOREIGN KEY (DayIndex) REFERENCES ViewDay(DayIndex),
+                          FOREIGN KEY (SyncRunId) REFERENCES SyncRun(Id)
+                      );
+                      """;
+    await cmd.ExecuteNonQueryAsync();
+}
+
+static async Task<HashSet<string>> GetColumnNamesAsync(SqliteConnection db, string tableName)
+{
+    await using var cmd = db.CreateCommand();
+    cmd.CommandText = $"PRAGMA table_info({tableName});";
+    await using var reader = await cmd.ExecuteReaderAsync();
+
+    var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    while (await reader.ReadAsync())
+    {
+        columns.Add(reader.GetString(1));
+    }
+
+    return columns;
 }
 
 static async Task<long> CreateSyncRunAsync(SqliteConnection db, DateTime startedUtc)
@@ -218,80 +283,57 @@ static async Task<List<TrafficDay>> GetTrafficDaysAsync(HttpClient httpClient, s
     return result;
 }
 
-static async Task UpsertViewDaysAsync(SqliteConnection db, long repositoryId, long syncRunId, IEnumerable<TrafficDay> days)
+static async Task<long> UpsertViewDayAsync(SqliteConnection db, DateTime date)
 {
-    foreach (var day in days)
-    {
-        await using var cmd = db.CreateCommand();
-        cmd.CommandText = """
-                          INSERT INTO ViewDay (RepositoryId, [Date], Visitors, UniqueVisitors, SyncRunId)
-                          VALUES ($repositoryId, $date, $visitors, $uniqueVisitors, $syncRunId)
-                          ON CONFLICT(RepositoryId, [Date]) DO UPDATE SET
-                              Visitors = excluded.Visitors,
-                              UniqueVisitors = excluded.UniqueVisitors,
-                              SyncRunId = excluded.SyncRunId;
-                          """;
-        cmd.Parameters.AddWithValue("$repositoryId", repositoryId);
-        cmd.Parameters.AddWithValue("$date", day.Date.ToString("yyyy-MM-dd"));
-        cmd.Parameters.AddWithValue("$visitors", day.Count);
-        cmd.Parameters.AddWithValue("$uniqueVisitors", day.Uniques);
-        cmd.Parameters.AddWithValue("$syncRunId", syncRunId);
-        await cmd.ExecuteNonQueryAsync();
-    }
+    await using var insertCmd = db.CreateCommand();
+    insertCmd.CommandText = """
+                            INSERT INTO ViewDay ([Date])
+                            VALUES ($date)
+                            ON CONFLICT([Date]) DO NOTHING;
+                            """;
+    insertCmd.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
+    await insertCmd.ExecuteNonQueryAsync();
+
+    await using var selectCmd = db.CreateCommand();
+    selectCmd.CommandText = "SELECT DayIndex FROM ViewDay WHERE [Date] = $date;";
+    selectCmd.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
+    var value = await selectCmd.ExecuteScalarAsync();
+    return Convert.ToInt64(value);
 }
 
-static async Task UpsertCloneDaysAsync(SqliteConnection db, long repositoryId, long syncRunId, IEnumerable<TrafficDay> days)
+static async Task UpsertTrafficDaysAsync(SqliteConnection db, long repositoryId, long syncRunId, IEnumerable<TrafficDay> viewDays, IEnumerable<TrafficDay> cloneDays)
 {
-    foreach (var day in days)
+    var viewsByDate = viewDays.ToDictionary(d => d.Date, d => d);
+    var clonesByDate = cloneDays.ToDictionary(d => d.Date, d => d);
+
+    var allDates = viewsByDate.Keys.Union(clonesByDate.Keys).OrderBy(d => d).ToList();
+    foreach (var date in allDates)
     {
+        var dayIndex = await UpsertViewDayAsync(db, date);
+
+        viewsByDate.TryGetValue(date, out var views);
+        clonesByDate.TryGetValue(date, out var clones);
+
         await using var cmd = db.CreateCommand();
         cmd.CommandText = """
-                          INSERT INTO CloneDay (RepositoryId, [Date], Clones, UniqueCloners, SyncRunId)
-                          VALUES ($repositoryId, $date, $clones, $uniqueCloners, $syncRunId)
-                          ON CONFLICT(RepositoryId, [Date]) DO UPDATE SET
+                          INSERT INTO CloneDay (RepositoryId, DayIndex, Clones, UniqueCloners, Views, UniqueViewers, SyncRunId)
+                          VALUES ($repositoryId, $dayIndex, $clones, $uniqueCloners, $views, $uniqueViewers, $syncRunId)
+                          ON CONFLICT(RepositoryId, DayIndex) DO UPDATE SET
                               Clones = excluded.Clones,
                               UniqueCloners = excluded.UniqueCloners,
+                              Views = excluded.Views,
+                              UniqueViewers = excluded.UniqueViewers,
                               SyncRunId = excluded.SyncRunId;
                           """;
         cmd.Parameters.AddWithValue("$repositoryId", repositoryId);
-        cmd.Parameters.AddWithValue("$date", day.Date.ToString("yyyy-MM-dd"));
-        cmd.Parameters.AddWithValue("$clones", day.Count);
-        cmd.Parameters.AddWithValue("$uniqueCloners", day.Uniques);
+        cmd.Parameters.AddWithValue("$dayIndex", dayIndex);
+        cmd.Parameters.AddWithValue("$clones", clones?.Count ?? 0);
+        cmd.Parameters.AddWithValue("$uniqueCloners", clones?.Uniques ?? 0);
+        cmd.Parameters.AddWithValue("$views", views?.Count ?? 0);
+        cmd.Parameters.AddWithValue("$uniqueViewers", views?.Uniques ?? 0);
         cmd.Parameters.AddWithValue("$syncRunId", syncRunId);
         await cmd.ExecuteNonQueryAsync();
     }
-}
-
-static string ReadSecret()
-{
-    var builder = new StringBuilder();
-    while (true)
-    {
-        var key = Console.ReadKey(intercept: true);
-        if (key.Key == ConsoleKey.Enter)
-        {
-            Console.WriteLine();
-            break;
-        }
-
-        if (key.Key == ConsoleKey.Backspace)
-        {
-            if (builder.Length <= 0)
-            {
-                continue;
-            }
-
-            builder.Length -= 1;
-            continue;
-        }
-
-        if (!char.IsControl(key.KeyChar))
-        {
-            builder.Append(key.KeyChar);
-        }
-    }
-
-    return builder.ToString();
 }
 
 public sealed class ReposConfig
