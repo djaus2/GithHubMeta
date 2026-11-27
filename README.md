@@ -35,3 +35,6 @@ Data is stored in `github-traffic.db` using entities:
 - ViewDay (day index table)
 - CloneDay (references day index and stores clones + views metrics)
 - SyncRun
+
+> Note: There is a sample database `github-traffics_sample.db`.  
+When you first run the app it will create a new database `github-traffic.db` and populate it with the repositories in `repos.json`. The app will then collect traffic data for each repository and store it in the database.
