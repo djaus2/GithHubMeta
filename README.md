@@ -2,15 +2,16 @@
 
 Console and WPF apps to collect and view GitHub traffic data in SQLite.
 
-> nb: The Date Filter in the WPF app doesn't work.
+> Nb: The Date Filter in the WPF app currently doesn't work. *(ToDo)*
 
 ## Run
 
-1. Update `repos.json` with repositories to monitor.
+1. Update `repos.json` with YOUR repositories to monitor.
 2. Run console sync app: `dotnet run --project .\\GitHubMetaConsole\\GitHubMetaConsole.csproj`.
 3. Run WPF viewer app: `dotnet run --project .\\GitHubMetaWPF\\GitHubMetaWPF.csproj`.
 4. Enter a GitHub token with access to repository traffic data.
    - 4.1 The token is saved with the WPF app.
+   - 4.2 Withe WPF you can add and remove repositories including associated data.
 
 ## GitHub PAT access
 
